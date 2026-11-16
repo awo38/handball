@@ -1,5 +1,24 @@
 {
   "leagues": [
-    { "og": "216", "lId": "164116", "name": "Männer Bezirksliga Rhein-Neckar" }
+    {
+      "og": "216",
+      "lId": "164116",
+      "name": "Männer Bezirksliga Rhein-Neckar"
+    },
+    {
+      "og": "216",
+      "lId": "164761",
+      "name": "Liga 164761"
+    },
+    {
+      "og": "216",
+      "lId": "164756",
+      "name": "Liga 164756"
+    },
+    {
+      "og": "216",
+      "lId": "164131",
+      "name": "Liga 164131"
+    }
   ]
 }

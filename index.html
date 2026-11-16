@@ -161,6 +161,33 @@ input.field:focus{box-shadow:0 0 0 2px var(--accent)}
 .wk b{font-size:15px}
 .wk .icon-btn:disabled{opacity:.35}
 .skel{height:120px;border-radius:var(--r);background:linear-gradient(90deg,var(--card) 0,var(--card2) 50%,var(--card) 100%);background-size:200% 100%;animation:sh 1.2s infinite;margin-bottom:12px}
+.back{display:none;align-items:center;gap:2px;color:var(--accent);font-size:17px;padding:4px 8px 4px 0;margin-left:-6px}
+.back svg{width:12px;height:20px}
+body.team .back{display:flex}
+body.team .nav-in .status{margin-right:auto;margin-left:6px;transition:opacity .2s}
+body.team .nav.scrolled .status{opacity:0}
+body.ov .tabbar{display:none}
+.ov-card{margin-bottom:12px}
+.ov-head{display:flex;align-items:center;gap:12px;padding:14px 16px 10px}
+.ov-head .grow{flex:1;min-width:0}
+.ov-head .t{font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-head .s{font-size:13px;color:var(--sec);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-pos{text-align:right;font-variant-numeric:tabular-nums}
+.ov-pos b{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.ov-pos div{font-size:12px;color:var(--sec)}
+.ov-g{display:flex;align-items:center;gap:10px;padding:9px 16px;position:relative;min-height:46px}
+.ov-g::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.ov-g .k{width:72px;flex:none;font-size:12px;font-weight:600;color:var(--sec);text-transform:uppercase;letter-spacing:.03em}
+.ov-g .grow{flex:1;min-width:0}
+.ov-g .t{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-g .s{font-size:12.5px;color:var(--sec);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ov-live{padding:16px 16px 14px;text-align:center;border-top:.5px solid var(--sep)}
+.ov-live .vs{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px}
+.ov-live .nm{flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ov-live .sc{font-size:36px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;flex:none}
+.ov-live .sub{font-size:12px;color:var(--sec);margin-top:6px}
+.ov-card.is-live{box-shadow:0 0 0 2px var(--red)}
+.ov-err{padding:4px 16px 14px;font-size:13px;color:var(--sec)}
 @keyframes sh{to{background-position:-200% 0}}
 .fade{animation:fi .25s ease}
 @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
@@ -188,6 +215,7 @@ input.field:focus{box-shadow:0 0 0 2px var(--accent)}
 </head>
 <body>
 <div class="nav" id="nav"><div class="nav-in">
+  <button class="back" id="backBtn" aria-label="Alle Mannschaften"><svg viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2 2 10l8 8"/></svg><span>Teams</span></button>
   <div class="status" id="status"><span class="dot off"></span><span>Lädt…</span></div>
   <div class="nav-title" id="navTitle"></div>
   <button class="icon-btn" id="teamBtn" aria-label="Mannschaften">
@@ -207,7 +235,13 @@ const SNAPSHOT = null;
 const API = 'https://spo.handball4all.de/service/if_g_json.php';
 const PORTAL = 'https://www.handball4all.de/home/portal/baden-wuerttembergischer-hv';
 const COLORS = ['#007AFF','#FF3B30','#34C759','#FF9500','#AF52DE','#5856D6','#FF2D55','#00C7BE','#A2845E','#30B0C7','#1D1D1F'];
-const DEFAULT = [{og:'216', lId:'164116', tId:'1473021', color:'#007AFF'}];
+const DEFAULT = [
+  {og:'216', lId:'164116', tId:'1473021', color:'#007AFF'},
+  {og:'216', lId:'164761', tId:'1476401', color:'#FF9500'},
+  {og:'216', lId:'164756', tId:'1476361', color:'#34C759'},
+  {og:'216', lId:'164131', tId:'1476291', color:'#AF52DE'}
+];
+const DEFAULTS_VERSION = 2;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -217,7 +251,16 @@ const store = {
 };
 
 let cfg = store.get('hb.teams', null);
-if(!Array.isArray(cfg) || !cfg.length) cfg = DEFAULT.slice();
+if(!Array.isArray(cfg) || !cfg.length) cfg = DEFAULT.map(c => ({...c}));
+else if((store.get('hb.defv', 1) || 1) < DEFAULTS_VERSION){
+  // neue Standard-Mannschaften einmalig ergänzen, ohne eigene Auswahl zu überschreiben
+  DEFAULT.forEach(d => { if(!cfg.some(c => c.og === d.og && c.lId === d.lId && c.tId === d.tId)){
+    const used = cfg.map(c => (c.color || '').toLowerCase());
+    cfg.push({...d, color:used.includes(d.color.toLowerCase()) ? (COLORS.find(x => !used.includes(x.toLowerCase())) || d.color) : d.color});
+  } });
+}
+store.set('hb.teams', cfg); store.set('hb.defv', DEFAULTS_VERSION);
+let mode = 'all';
 let active = Math.min(store.get('hb.active', 0) || 0, cfg.length - 1);
 let tab = store.get('hb.tab', 'home');
 let seg = {games:'all', table:'all', stats:'all', liga:'week', sc:'goals', scMine:false, sq:'goals'};
@@ -901,7 +944,7 @@ function teamsSheet(){
   const c = cfg[active];
   openSheet(`<div class="sheet-h"><b>Mannschaften</b><button class="icon-btn" data-close aria-label="Schließen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <div class="card list">${items}</div>
-    <h2 class="sec" style="font-size:19px">Farbe</h2>
+    <h2 class="sec" style="font-size:19px">Farbe <small>${esc(c.name || '')}</small></h2>
     <div class="card"><div class="swatches">${COLORS.map(col => `<button data-color="${col}" class="${(c.color || COLORS[0]).toLowerCase() === col.toLowerCase() ? 'on' : ''}" style="background:${col};color:${col}" aria-label="Farbe ${col}"></button>`).join('')}</div></div>
     <h2 class="sec" style="font-size:19px">Mannschaft hinzufügen</h2>
     <div class="foot" style="padding:0 4px 10px">Öffne auf handball4all.de die Liga deiner Mannschaft und kopiere den Link aus der Adresszeile hier hinein.</div>
@@ -934,7 +977,138 @@ function addTeam(o){
   if(cfg.some(c => c.og === o.og && c.lId === o.lId && c.tId === o.tId)){ active = cfg.findIndex(c => c.og === o.og && c.lId === o.lId && c.tId === o.tId); }
   else { cfg.push({...o, color:COLORS[cfg.length % COLORS.length]}); active = cfg.length - 1; }
   store.set('hb.teams', cfg); store.set('hb.active', active);
-  closeSheet(); tab = 'home'; D = null; RAW = null; applyColor(); render(); load(true); toast(`${o.name || 'Mannschaft'} hinzugefügt`);
+  closeSheet(); D = null; RAW = null; openTeam(active); toast(`${o.name || 'Mannschaft'} hinzugefügt`);
+}
+
+
+/* ---------- Übersicht: alle Mannschaften ---------- */
+let OV = store.get('hb.ov', {}) || {}, ovSource = '', ovLoaded = 0, ovTimer = null, ovLoading = false;
+const ovKey = c => c.og + '-' + c.lId + '-' + c.tId;
+async function fetchTeamLite(c, prev){
+  const scoreOf = b => (b.content.score || []).map(s => [s.tabScore, String(s.tabTeamID), tr(s.tabTeamname), s.numPlayedGames, s.numWonGames, s.numEqualGames, s.numLostGames, s.numGoalsShot, s.numGoalsGot, s.pointsPlus, s.pointsMinus]);
+  if(prev && prev.games && prev.games.length && Date.now() - prev.full < 30 * 60e3){
+    // leichtes Update: nur Liga-Abfrage (aktuelle Woche inkl. Live-Stand)
+    const b = (await getJSON(url(c)))[0];
+    const map = Object.fromEntries(prev.games.map(g => [g[0], g]));
+    [...gamesOf(b.content.actualGames), ...gamesOf(b.content.futureGames)].forEach(g => { if(map[String(g.gID)]) map[String(g.gID)] = compact(g); });
+    return {...prev, fetched:Date.now(), head:headOf(b), score:scoreOf(b), games:Object.values(map)};
+  }
+  const [b, t] = await Promise.all([getJSON(url(c)).then(j => j[0]), getJSON(url(c, c.tId)).then(j => j[0])]);
+  const teams = (b.content.teamsList || []).map(x => [String(x.teamID), tr(x.teamName)]);
+  const mine = gamesOf(t.content.futureGames);
+  const cnt = {}; mine.forEach(g => { cnt[tr(g.gHomeTeam)] = (cnt[tr(g.gHomeTeam)] || 0) + 1; cnt[tr(g.gGuestTeam)] = (cnt[tr(g.gGuestTeam)] || 0) + 1; });
+  const short = (Object.entries(cnt).sort((a, b) => b[1] - a[1])[0] || [])[0];
+  const map = Object.fromEntries(mine.map(g => [String(g.gID), compact(g)]));
+  [...gamesOf(b.content.actualGames), ...gamesOf(b.content.futureGames)].forEach(g => { if(map[String(g.gID)]) map[String(g.gID)] = compact(g); });
+  return {key:key(c), full:Date.now(), fetched:Date.now(), head:headOf(b), teams, alias:short ? {[c.tId]:short} : {}, comments:[], score:scoreOf(b), games:Object.values(map)};
+}
+function ovData(c){
+  const raw = OV[ovKey(c)]; if(!raw) return null;
+  const N = normalize(raw, c);
+  const gs = N.games.filter(g => g.h === c.tId || g.g === c.tId);
+  const live = gs.filter(liveish);
+  const last = gs.filter(g => g.played).slice(-1)[0] || null;
+  const next = gs.find(g => !g.played && !liveish(g) && g.date >= new Date(Date.now() - 3 * 3600e3)) || null;
+  const row = N.score.find(s => s.id === c.tId) || null;
+  const form = gs.filter(g => g.played).slice(-5).map(g => resFor(g, c.tId));
+  return {N, name:N.full[c.tId] || c.name || 'Mannschaft', league:N.head.name, live, last, next, row, n:N.teams.length, form};
+}
+function ovCrest(c, name){
+  const words = (name || '').replace(/[\/\-.]/g, ' ').split(/\s+/).filter(Boolean);
+  const main = words.filter(w => !PREFIX.test(w) && !/^\d+$/.test(w));
+  const num = (/\s(\d)$/.exec(name || '') || [])[1];
+  return `<span class="crest" style="background:${c.color || COLORS[0]}">${esc(((main[0] || words[0] || '?').slice(0, 2)).toUpperCase())}${num ? `<sup>${num}</sup>` : ''}</span>`;
+}
+function ovGameRow(label, g, c){
+  const o = opp(g, c.tId), home = g.h === c.tId;
+  let right;
+  if(g.played){ const r = resFor(g, c.tId); right = `<span class="pill ${r}">${g.forfeit ? 'Wertung' : goalsFor(g, c.tId).join(':')}</span>`; }
+  else right = `<span class="pill N">${fmtTime(g)}</span>`;
+  return `<div class="ov-g"><div class="k">${label}</div><div class="grow"><div class="t">${home ? '' : '<span class="mute">@ </span>'}${esc(o.name)}</div><div class="s">${rel(g.date)} · ${fmtDay(g.date)} · ${home ? 'Heim' : 'Auswärts'}</div></div>${right}</div>`;
+}
+function ovLiveBlock(g, c){
+  const mid = g.hg != null ? `<div class="sc">${g.hg}<span class="mute">:</span>${g.gg}</div>` : `<div class="sc" style="font-size:22px">${fmtTime(g)}</div>`;
+  const sub = g.hg != null ? (g.live ? 'läuft · aktualisiert alle 20 Sek.' : 'Anpfiff ' + fmtTime(g)) : 'Anpfiff ' + fmtTime(g) + ' · warte auf Spielstand…';
+  const b = id => id === c.tId ? 'color:var(--label)' : 'color:var(--sec)';
+  return `<div class="ov-live"><span class="tag live">Live</span><div class="vs"><div class="nm" style="text-align:right;${b(g.h)}">${esc(g.hn)}</div>${mid}<div class="nm" style="text-align:left;${b(g.g)}">${esc(g.gn)}</div></div><div class="sub">${sub}${g.venue ? ' · ' + esc(g.venue) : ''}</div></div>`;
+}
+function viewOverview(){
+  const items = cfg.map((c, i) => ({c, i, d:ovData(c)}));
+  const anyLive = items.some(x => x.d && x.d.live.length);
+  const today = new Date();
+  let h = `<div class="large fade"><div style="min-width:0"><h1>Meine Teams</h1><p>${WD[today.getDay()]}, ${today.getDate()}. ${MONL[today.getMonth()]} · ${cfg.length} Mannschaft${cfg.length === 1 ? '' : 'en'}</p></div></div>`;
+  if(ovSource === 'cache') h += `<div class="banner"><span>⚠️</span><div><b>Offline</b><br>Zeige zuletzt geladenen Stand.</div></div>`;
+  // laufende Spiele zuerst, danach Reihenfolge wie eingestellt
+  items.sort((a, b) => (b.d && b.d.live.length ? 1 : 0) - (a.d && a.d.live.length ? 1 : 0) || a.i - b.i);
+  if(anyLive) h += `<h2 class="sec" style="margin-top:6px">Jetzt live</h2>`;
+  let liveDone = !anyLive;
+  items.forEach(({c, i, d}) => {
+    const isLive = d && d.live.length;
+    if(!liveDone && !isLive){ h += `<h2 class="sec">Weitere Teams</h2>`; liveDone = true; }
+    if(!d){
+      h += `<div class="card ov-card tap" data-open="${i}"><div class="ov-head">${ovCrest(c, c.name)}<div class="grow"><div class="t">${esc(c.name || 'Mannschaft')}</div><div class="s">${esc(c.league || '')}</div></div>${chev}</div>${ovLoading || !ovLoaded ? '<div class="ov-err"><div class="skel" style="height:40px;margin:0"></div></div>' : '<div class="ov-err">Konnte nicht geladen werden.</div>'}</div>`;
+      return;
+    }
+    const pos = d.row ? `<div class="ov-pos"><b>${d.row.pos}.</b><div>${d.row.pts}:${d.row.ptsm} Pkt.</div></div>` : '';
+    h += `<div class="card ov-card tap fade${isLive ? ' is-live' : ''}" data-open="${i}">
+      <div class="ov-head">${ovCrest(c, d.name)}<div class="grow"><div class="t">${esc(d.name)}</div><div class="s">${esc(d.league)}${d.form.length ? '' : ''}</div></div>${pos}${chev}</div>
+      ${d.live.map(g => ovLiveBlock(g, c)).join('')}
+      ${d.last ? ovGameRow('Letztes', d.last, c) : ''}
+      ${d.next ? ovGameRow('Nächstes', d.next, c) : (!d.live.length ? '<div class="ov-g"><div class="k">Nächstes</div><div class="grow s">Kein Spiel angesetzt</div></div>' : '')}
+    </div>`;
+  });
+  h += `<div style="margin-top:18px"><button class="btn ghost" id="teamBtn2">Mannschaften verwalten</button></div>`;
+  h += `<div class="foot" style="text-align:center;margin-top:10px">Tippe auf eine Mannschaft für Spiele, Tabelle und Statistik.</div>`;
+  return h;
+}
+function renderOverview(){
+  document.body.classList.add('ov'); document.body.classList.remove('team');
+  $('#navTitle').textContent = 'Meine Teams';
+  $('#main').innerHTML = viewOverview();
+  ovStatus();
+}
+function ovStatus(){
+  const el = $('#status');
+  const live = cfg.some(c => { const d = ovData(c); return d && d.live.length; });
+  if(!ovLoaded){ el.innerHTML = `<span class="dot off"></span><span>Lädt…</span>`; return; }
+  const t = new Date(ovLoaded).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+  const txt = ovSource === 'live' ? (live ? `Live · ${t}` : `Aktualisiert ${t}`) : 'Offline';
+  el.innerHTML = `<span class="dot ${ovSource === 'live' ? '' : 'off'}" style="${live && ovSource === 'live' ? 'background:var(--red);animation:pulse 1.4s infinite' : ''}"></span><span>${txt}</span>`;
+}
+async function loadOverview(force = false){
+  if(ovLoading) return; ovLoading = true;
+  let ok = 0;
+  await Promise.all(cfg.map(async c => {
+    const k = ovKey(c);
+    try{ OV[k] = await fetchTeamLite(c, force ? null : OV[k]); ok++; }catch(e){}
+  }));
+  ovLoading = false;
+  ovSource = ok ? 'live' : 'cache'; ovLoaded = Date.now();
+  const keep = new Set(cfg.map(ovKey)); Object.keys(OV).forEach(k => { if(!keep.has(k)) delete OV[k]; });
+  store.set('hb.ov', OV);
+  if(mode === 'all') renderOverview();
+  ovSchedule();
+}
+function ovSchedule(){
+  clearTimeout(ovTimer);
+  if(mode !== 'all') return;
+  const ds = cfg.map(ovData).filter(Boolean);
+  const hot = ds.some(d => d.live.length || d.N.head.live);
+  const soon = ds.some(d => d.next && d.next.hasTime && d.next.date - Date.now() < 30 * 60e3);
+  ovTimer = setTimeout(() => { if(document.visibilityState === 'visible') loadOverview(); else ovSchedule(); }, hot ? 20e3 : soon ? 60e3 : 5 * 60e3);
+}
+function showOverview(){
+  mode = 'all'; clearTimeout(timer); closeSheet();
+  document.documentElement.style.setProperty('--accent', COLORS[0]);
+  renderOverview(); window.scrollTo({top:0});
+  loadOverview();
+}
+function openTeam(i){
+  mode = 'team'; clearTimeout(ovTimer);
+  document.body.classList.remove('ov'); document.body.classList.add('team');
+  if(i !== active || !D){ active = i; store.set('hb.active', active); D = null; RAW = null; SRAW = null; S = null; ligaWeek = null; }
+  tab = 'home'; store.set('hb.tab', tab);
+  applyColor(); render(); window.scrollTo({top:0}); load(true);
 }
 
 /* ---------- load / poll ---------- */
@@ -954,6 +1128,8 @@ async function load(full = true){
     } else if(source === 'live') source = 'cache';
   }
   loading = false;
+  if(mode !== 'team') return;
+  if(key(cfg[active]) !== k || cfg[active].tId !== c.tId){ RAW = null; return load(true); }
   if(RAW){
     D = normalize(RAW, c);
     const nm = D.full[c.tId]; const lg = `${D.head.name}${D.head.h1 ? ' · ' + D.head.h1 : ''}`;
@@ -967,19 +1143,25 @@ async function load(full = true){
 }
 function schedule(){
   clearTimeout(timer);
-  if(source === 'snapshot' || !D) return;
+  if(mode !== 'team' || source === 'snapshot' || !D) return;
   const hot = D.games.some(liveish) || D.head.live;
   const soon = D.games.some(g => !g.played && g.hasTime && g.date - Date.now() > 0 && g.date - Date.now() < 30 * 60e3);
   timer = setTimeout(() => { if(document.visibilityState === 'visible') load(Date.now() - lastLoad > 30 * 60e3); else schedule(); }, hot ? 20e3 : soon ? 60e3 : 5 * 60e3);
 }
-document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && source !== 'snapshot' && Date.now() - lastLoad > 60e3) load(false); });
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState !== 'visible') return;
+  if(mode === 'all'){ if(Date.now() - ovLoaded > 30e3) loadOverview(); }
+  else if(source !== 'snapshot' && Date.now() - lastLoad > 60e3) load(false);
+});
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-share],[data-player],[data-sc],[data-scmine],[data-more],[data-goto-sc],[data-tab],[data-seg] button,[data-game],[data-team],[data-goto],[data-wk],[data-close],[data-switch],[data-color],[data-refresh],[data-remove],[data-pick],[data-follow],#addGo,#teamBtn');
+  const t = e.target.closest('[data-share],[data-player],[data-sc],[data-scmine],[data-more],[data-goto-sc],[data-tab],[data-seg] button,[data-game],[data-team],[data-goto],[data-wk],[data-close],[data-switch],[data-color],[data-refresh],[data-remove],[data-pick],[data-follow],[data-open],#addGo,#teamBtn,#teamBtn2,#backBtn');
   if(!t) return;
   if(t.matches('a[data-goto]')) e.preventDefault();
-  if(t.id === 'teamBtn') return teamsSheet();
+  if(t.id === 'teamBtn' || t.id === 'teamBtn2') return teamsSheet();
+  if(t.id === 'backBtn') return showOverview();
+  if(t.dataset.open != null) return openTeam(+t.dataset.open);
   if(t.id === 'addGo') return addFromUrl();
   const ds = t.dataset;
   if('share' in ds){ const u = location.origin + location.pathname; if(navigator.share){ navigator.share({title:'Handball', text:'Unsere Handball-App', url:u}).catch(() => {}); } else if(navigator.clipboard){ navigator.clipboard.writeText(u).then(() => toast('Link kopiert'), () => toast(u)); } else toast(u); return; }
@@ -995,10 +1177,10 @@ document.addEventListener('click', e => {
   if(ds.team) return teamSheet(ds.team);
   if(ds.wk){ const weeks = [...new Set(D.games.map(g => weekKey(g.date)))].sort((a, b) => a - b); const i = weeks.indexOf(ligaWeek) + +ds.wk; if(weeks[i] != null){ ligaWeek = weeks[i]; render(); } return; }
   if('close' in ds) return closeSheet();
-  if(ds.switch != null){ const i = +ds.switch; if(i !== active){ active = i; store.set('hb.active', active); D = null; RAW = null; SRAW = null; S = null; ligaWeek = null; applyColor(); render(); load(true); } closeSheet(); return; }
-  if(ds.color){ cfg[active].color = ds.color; store.set('hb.teams', cfg); applyColor(); $('#sheet').querySelectorAll('[data-color]').forEach(b => b.classList.toggle('on', b === t)); render(); return; }
-  if('refresh' in ds){ closeSheet(); toast('Aktualisiere…'); load(true).then(() => toast(source === 'live' ? 'Aktuell' : 'Keine Verbindung')); return; }
-  if('remove' in ds){ cfg.splice(active, 1); active = 0; store.set('hb.teams', cfg); store.set('hb.active', 0); closeSheet(); D = null; RAW = null; applyColor(); render(); load(true); return; }
+  if(ds.switch != null){ closeSheet(); return openTeam(+ds.switch); }
+  if(ds.color){ cfg[active].color = ds.color; store.set('hb.teams', cfg); if(mode === 'team') applyColor(); $('#sheet').querySelectorAll('[data-color]').forEach(b => b.classList.toggle('on', b === t)); mode === 'team' ? render() : renderOverview(); return; }
+  if('refresh' in ds){ closeSheet(); toast('Aktualisiere…'); if(mode === 'all'){ loadOverview(true).then(() => toast(ovSource === 'live' ? 'Aktuell' : 'Keine Verbindung')); return; } load(true).then(() => toast(source === 'live' ? 'Aktuell' : 'Keine Verbindung')); return; }
+  if('remove' in ds){ cfg.splice(active, 1); active = 0; store.set('hb.teams', cfg); store.set('hb.active', 0); closeSheet(); D = null; RAW = null; SRAW = null; S = null; return showOverview(); }
   if(ds.pick){ return addTeam({og:addState.og, lId:addState.lId, tId:ds.pick, name:ds.name, league:addState.league}); }
   if(ds.follow){ const c = cfg[active]; return addTeam({og:c.og, lId:c.lId, tId:ds.follow, name:D.full[ds.follow], league:c.league}); }
 });
@@ -1012,8 +1194,8 @@ window.addEventListener('scroll', () => $('#nav').classList.toggle('scrolled', w
   s.addEventListener('touchend', e => { if(y0 == null) return; const dy = (e.changedTouches[0].clientY - y0); s.style.transition = ''; s.style.transform = ''; if(dy > 110) closeSheet(); y0 = null; });
 })();
 
-applyColor(); render(); load(true);
-setInterval(() => { if(D && tab === 'home') updateStatus(); }, 30e3);
+showOverview();
+setInterval(() => { if(mode === 'all') ovStatus(); else if(D && tab === 'home') updateStatus(); }, 30e3);
 </script>
 </body>
 </html>
